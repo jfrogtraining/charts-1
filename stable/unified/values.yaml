@@ -1,0 +1,202 @@
+## Enable Subcharts
+artifactory-ha:
+  enabled: true
+xray:
+  enabled: false
+distribution:
+  enabled: false
+mission-control:
+  enabled: false
+pipelines:
+  enabled: false
+
+## All values are under the 'artifactory' sub chart.
+artifactory:
+
+  ## Artifactory
+  ## See full list of supported Artifactory options and documentation in artifactory chart: https://github.com/jfrog/charts/tree/master/stable/artifactory
+  artifactory:
+    ## Default version is from the artifactory sub-chart in the requirements.yaml
+    image:
+      repository: docker.bintray.io/jfrog/artifactory
+      # version:
+
+  ## PostgreSQL
+  ## See list of supported postgresql options and documentation in artifactory chart: https://github.com/jfrog/charts/tree/master/stable/artifactory
+  ## Configuration values for the PostgreSQL dependency sub-chart
+  ## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
+  postgresql:
+    enabled: true
+
+## Enable the PostgreSQL sub chart
+postgresql:
+  enabled: true
+
+
+## All values are under the 'xray' sub chart.
+xray:
+  # Default values for Xray HA.
+  # This is a YAML-formatted file.
+  # Beware when changing values here. You should know what you are doing!
+  # Access the values with {{ .Values.key.subkey }}
+
+  replicaCount: 1
+
+  xray:
+    ## Xray requires a unique master key
+    ## You can generate one with the command:
+    ## 'openssl rand -hex 32'
+    ## Pass it to helm with '--set xray.masterKey=${MASTER_KEY}'
+    ## IMPORTANT: You should NOT use the example masterKey for a production deployment!
+    masterKey: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    ## Alternatively, you can use a pre-existing secret with a key called master-key by specifying masterKeySecretName
+    # masterKeySecretName:
+
+    ## Join Key to connect to main Artifactory. Mandatory
+    joinKey: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    ## Alternatively, you can use a pre-existing secret with a key called join-key by specifying joinKeySecretName
+    # joinKeySecretName:
+    ## If false, all service console logs will not redirect to a common console.log
+    consoleLog: false
+    ## Artifactory URL . Mandatory
+    jfrogUrl:
+
+  # PostgreSQL
+  ## Configuration values for the postgresql dependency
+  ## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
+  ##
+  postgresql:
+    enabled: true
+    image:
+      registry: docker.bintray.io
+      repository: bitnami/postgresql
+      tag: 9.6.17-debian-10-r21
+    postgresqlUsername: xray
+    postgresqlPassword: ""
+    postgresqlDatabase: xraydb
+    postgresqlExtendedConf:
+      listenAddresses: "'*'"
+      maxConnections: "500"
+    service:
+      port: 5432
+    persistence:
+      enabled: true
+      size: 50Gi
+      existingClaim:
+    resources: {}
+    #  requests:
+    #    memory: "1Gi"
+    #    cpu: "250m"
+    #  limits:
+    #    memory: "2Gi"
+    #    cpu: "1"
+    nodeSelector: {}
+    affinity: {}
+    tolerations: []
+
+  ## If NOT using the PostgreSQL in this chart (postgresql.enabled=false),
+  database:
+    ## If you would like this chart to create the secret containing the database url, user, password - use these below values
+    url:
+    user:
+    password:
+    ## If you have existing Kubernetes secrets containing db credentials, use
+    ## these values
+    secrets: {}
+    #  user:
+    #    name: "database-creds"
+    #    key: "db-user"
+    #  password:
+    #    name: "database-creds"
+    #    key: "db-password"
+    #  url:
+    #    name: "database-creds"
+    #    key: "db-url"
+
+  # RabbitMQ HA
+  ## Configuration values for the rabbitmq-ha dependency
+  ## ref: https://github.com/kubernetes/charts/blob/master/stable/rabbitmq-ha/README.md
+  ##
+  rabbitmq-ha:
+    enabled: true
+    replicaCount: 1
+    image:
+      tag: 3.7.21-alpine
+    rabbitmqUsername: guest
+    rabbitmqPassword: ""
+    persistentVolume:
+      enabled: true
+      size: 20Gi
+    rbac:
+      create: true
+
+    ## Custom command to run before Xray startup. Runs BEFORE any microservice-specific preStartCommand
+    preStartCommand:
+
+  global:
+    # Kubernetes secret with Postgres TLS certificates
+    postgresqlTlsSecret:
+
+  analysis:
+    name: xray-analysis
+    ## Note that by default we use appVersion to get image tag/version
+    image:
+      repository: docker.bintray.io/jfrog/xray-analysis
+      # version:
+    updateStrategy: RollingUpdate
+    podManagementPolicy: Parallel
+
+    ## Custom command to run before Xray Analysis startup. Runs AFTER the common.preStartCommand
+    preStartCommand:
+
+  indexer:
+    name: xray-indexer
+    ## Note that by default we use appVersion to get image tag/version
+    image:
+      repository: docker.bintray.io/jfrog/xray-indexer
+      # version:
+    updateStrategy: RollingUpdate
+    podManagementPolicy: Parallel
+
+  persist:
+    name: xray-persist
+    ## Note that by default we use appVersion to get image tag/version
+    image:
+      repository: docker.bintray.io/jfrog/xray-persist
+      # version:
+    updateStrategy: RollingUpdate
+    podManagementPolicy: Parallel
+
+    ## Container storage limit
+    persistence:
+      size: 10Gi
+
+    ## Custom command to run before Xray Persist startup. Runs AFTER the common.preStartCommand
+    preStartCommand:
+
+  server:
+    name: xray-server
+    ## Note that by default we use appVersion to get image tag/version
+    image:
+      repository: docker.bintray.io/jfrog/xray-server
+      # version:
+    updateStrategy: RollingUpdate
+    podManagementPolicy: Parallel
+    replicaCount: 1
+
+  router:
+    name: router
+    image:
+      repository: docker.bintray.io/jfrog/router
+      version: 1.2.1
+      imagePullPolicy: IfNotPresent
+
+  # Filebeat Sidecar container
+  ## The provided filebeat configuration is for Xray logs. It assumes you have a logstash installed and configured properly.
+  filebeat:
+    enabled: false
+    name: xray-filebeat
+    image:
+      repository: "docker.elastic.co/beats/filebeat"
+      version: 7.5.1
+    logstashUrl: "logstash:5044"
