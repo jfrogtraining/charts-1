@@ -2,7 +2,7 @@
 artifactory-ha:
   enabled: true
 xray:
-  enabled: false
+  enabled: true
 distribution:
   enabled: false
 mission-control:
@@ -10,17 +10,20 @@ mission-control:
 pipelines:
   enabled: false
 
-## All values are under the 'artifactory' sub chart.
-artifactory:
+## All values are under the 'artifactory-ha' sub chart.
+artifactory-ha:
 
   ## Artifactory
   ## See full list of supported Artifactory options and documentation in artifactory chart: https://github.com/jfrog/charts/tree/master/stable/artifactory
   artifactory:
+    masterKey: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    joinKey: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     ## Default version is from the artifactory sub-chart in the requirements.yaml
     image:
-      repository: docker.bintray.io/jfrog/artifactory
+      repository: docker.bintray.io/jfrog/artifactory-pro
       # version:
-
+    node:
+      replicaCount: 1
   ## PostgreSQL
   ## See list of supported postgresql options and documentation in artifactory chart: https://github.com/jfrog/charts/tree/master/stable/artifactory
   ## Configuration values for the PostgreSQL dependency sub-chart
@@ -28,44 +31,32 @@ artifactory:
   postgresql:
     enabled: true
 
-## Enable the PostgreSQL sub chart
-postgresql:
-  enabled: true
-
-
 ## All values are under the 'xray' sub chart.
 xray:
-  # Default values for Xray HA.
-  # This is a YAML-formatted file.
-  # Beware when changing values here. You should know what you are doing!
-  # Access the values with {{ .Values.key.subkey }}
-
   replicaCount: 1
-
   xray:
-    ## Xray requires a unique master key
-    ## You can generate one with the command:
-    ## 'openssl rand -hex 32'
-    ## Pass it to helm with '--set xray.masterKey=${MASTER_KEY}'
-    ## IMPORTANT: You should NOT use the example masterKey for a production deployment!
     masterKey: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    ## Alternatively, you can use a pre-existing secret with a key called master-key by specifying masterKeySecretName
-    # masterKeySecretName:
-
-    ## Join Key to connect to main Artifactory. Mandatory
     joinKey: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    ## Alternatively, you can use a pre-existing secret with a key called join-key by specifying joinKeySecretName
-    # joinKeySecretName:
-    ## If false, all service console logs will not redirect to a common console.log
     consoleLog: false
-    ## Artifactory URL . Mandatory
     jfrogUrl:
-
-  # PostgreSQL
-  ## Configuration values for the postgresql dependency
-  ## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
-  ##
+  # sleep the xray to let artifactory come up first
+  common:
+    customInitContainers: |
+      - name: "custom-setup"
+        image: "{{ .Values.initContainerImage }}"
+        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+        command:
+          - 'sh'
+          - '-c'
+          - >
+            until nc -z -w 2 {{ .Release.Name }}-nginx 80 && echo artifactory nginx ok; do
+              sleep 2;
+            done;
+        volumeMounts:
+          - mountPath: "{{ .Values.xray.persistence.mountPath }}"
+            name: data-volume
   postgresql:
+    nameOverride: xray-postgres
     enabled: true
     image:
       registry: docker.bintray.io
@@ -94,24 +85,13 @@ xray:
     affinity: {}
     tolerations: []
 
-  ## If NOT using the PostgreSQL in this chart (postgresql.enabled=false),
   database:
-    ## If you would like this chart to create the secret containing the database url, user, password - use these below values
-    url:
-    user:
-    password:
-    ## If you have existing Kubernetes secrets containing db credentials, use
-    ## these values
-    secrets: {}
-    #  user:
-    #    name: "database-creds"
-    #    key: "db-user"
-    #  password:
-    #    name: "database-creds"
-    #    key: "db-password"
-    #  url:
-    #    name: "database-creds"
-    #    key: "db-url"
+    url: "postgres://artifactory-xray-xray-postgres:5432/xraydb?sslmode=disable"
+    user: xray
+    secrets:
+      password:
+        name: artifactory-xray-xray-postgres
+        key: postgresql-password
 
   # RabbitMQ HA
   ## Configuration values for the rabbitmq-ha dependency

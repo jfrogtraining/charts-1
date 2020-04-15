@@ -1,1 +1,1 @@
-Congratulations. You have just deployed JFrog Container Registry!
+Congratulations. You have just deployed JFrog Artifactory Enterprise w/ Xray!
