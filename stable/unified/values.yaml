@@ -55,6 +55,23 @@ xray:
         volumeMounts:
           - mountPath: "{{ .Values.xray.persistence.mountPath }}"
             name: data-volume
+      - name: 'fix-system-yaml'
+        image: 'mikefarah/yq:latest'
+        command:
+        - '/bin/sh'
+        - '-c'
+        - >
+          echo "Copy system.yaml to {{ .Values.xray.persistence.mountPath }}/etc";
+          mkdir -p {{ .Values.xray.persistence.mountPath }}/etc;
+          cat /tmp/etc/system.yaml | yq -r '.shared.security.masterKeyFile="/opt/jfrog/xray/var/etc/security/master.key" | .shared.security.joinKeyFile="/opt/jfrog/xray/var/etc/security/join.key"' | yq --yaml-output . > {{ .Values.xray.persistence.mountPath }}/etc/system.yaml;
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data-volume
+          mountPath: {{ .Values.xray.persistence.mountPath | quote }}
+        - name: systemyaml
+          mountPath: "/tmp/etc/system.yaml"
+          subPath: system.yaml
   postgresql:
     nameOverride: xray-postgres
     enabled: true
@@ -86,7 +103,7 @@ xray:
     tolerations: []
 
   database:
-    url: "postgres://artifactory-xray-xray-postgres:5432/xraydb?sslmode=disable"
+    url: "postgres://{{ .Release.Name }}-xray-postgres:5432/xraydb?sslmode=disable"
     user: xray
     secrets:
       password:
