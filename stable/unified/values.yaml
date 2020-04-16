@@ -56,11 +56,15 @@ xray:
           - mountPath: "{{ .Values.xray.persistence.mountPath }}"
             name: data-volume
       - name: 'fix-system-yaml'
-        image: 'mikefarah/yq:latest'
+        image: 'ubuntu:latest'
         command:
-        - '/bin/sh'
+        - '/bin/bash'
         - '-c'
         - >
+          apt-get update -y;
+          apt-get install python3-pip -y;
+          apt-get install jq -y;
+          python3 -m pip install yq;
           echo "Copy system.yaml to {{ .Values.xray.persistence.mountPath }}/etc";
           mkdir -p {{ .Values.xray.persistence.mountPath }}/etc;
           cat /tmp/etc/system.yaml | yq -r '.shared.security.masterKeyFile="/opt/jfrog/xray/var/etc/security/master.key" | .shared.security.joinKeyFile="/opt/jfrog/xray/var/etc/security/join.key"' | yq --yaml-output . > {{ .Values.xray.persistence.mountPath }}/etc/system.yaml;
