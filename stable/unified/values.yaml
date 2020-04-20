@@ -42,7 +42,7 @@ xray:
   # sleep the xray to let artifactory come up first
   common:
     customInitContainers: |
-      - name: "custom-setup"
+      - name: "rt-wait-setup"
         image: "{{ .Values.initContainerImage }}"
         imagePullPolicy: "{{ .Values.imagePullPolicy }}"
         command:
@@ -55,27 +55,16 @@ xray:
         volumeMounts:
           - mountPath: "{{ .Values.xray.persistence.mountPath }}"
             name: data-volume
-      - name: 'fix-system-yaml'
-        image: 'ubuntu:latest'
+      - name: "rt-services-wait-setup"
+        image: "{{ .Values.initContainerImage }}"
+        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
         command:
-        - '/bin/bash'
-        - '-c'
-        - >
-          apt-get update -y;
-          apt-get install python3-pip -y;
-          apt-get install jq -y;
-          python3 -m pip install yq;
-          echo "Copy system.yaml to {{ .Values.xray.persistence.mountPath }}/etc";
-          mkdir -p {{ .Values.xray.persistence.mountPath }}/etc;
-          cat /tmp/etc/system.yaml | yq -r '.shared.security.masterKey="FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" | .shared.security.joinKey="EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"' | yq --yaml-output . > {{ .Values.xray.persistence.mountPath }}/etc/system.yaml;
-        securityContext:
-          runAsUser: 0
+          - 'sh'
+          - '-c'
+          - 'sleep 180;'
         volumeMounts:
-        - name: data-volume
-          mountPath: {{ .Values.xray.persistence.mountPath | quote }}
-        - name: systemyaml
-          mountPath: "/tmp/etc/system.yaml"
-          subPath: system.yaml
+          - mountPath: "{{ .Values.xray.persistence.mountPath }}"
+            name: data-volume
   postgresql:
     nameOverride: xray-postgres
     enabled: true
