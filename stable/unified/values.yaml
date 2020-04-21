@@ -101,7 +101,7 @@ xray:
     secrets:
       password:
         name: "{{ .Release.Name }}-xray-postgres"
-        key: db-password
+        key: postgresql-password
 
   # RabbitMQ HA
   ## Configuration values for the rabbitmq-ha dependency
