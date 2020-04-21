@@ -100,8 +100,8 @@ xray:
     user: xray
     secrets:
       password:
-        name: artifactory-xray-xray-postgres
-        key: postgresql-password
+        name: "{{ .Release.Name }}-xray-postgres"
+        key: db-password
 
   # RabbitMQ HA
   ## Configuration values for the rabbitmq-ha dependency
