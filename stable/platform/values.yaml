@@ -1,4 +1,15 @@
-## Enable Subcharts
+
+## following line will enable universal postgres db
+platform:
+  postgresql:
+    enabled: true
+  fullname: jfrog-platform
+
+# Since we are using an umbrella postgres, we need to disable all postgres dbs embedded inside subcharts
+# Disable postgres embedded inside all subcharts
+postgresql:
+  enabled: false
+## Enable/disable individual products through enabling/disabling subcharts
 artifactory-ha:
   enabled: true
 xray:
@@ -9,6 +20,50 @@ mission-control:
   enabled: false
 pipelines:
   enabled: false
+
+
+postgresql:
+  nameOverride: platform-postgres
+  image:
+    registry: docker.bintray.io
+    repository: bitnami/postgresql
+    tag: 9.6.17-debian-10-r21
+  postgresqlExtendedConf:
+    listenAddresses: "'*'"
+    maxConnections: "500"
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    size: 50Gi
+    existingClaim:
+  resources: {}
+  #  requests:
+  #    memory: "1Gi"
+  #    cpu: "250m"
+  #  limits:
+  #    memory: "2Gi"
+  #    cpu: "1"
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  initdbScriptsConfigMap: "{{ .Release.Name }}-postgre-init-scripts"
+  artifactory:
+    username: artifactory
+    password: ""
+    database: artifactorydb
+  xray:
+    username: xray
+    password: ""
+    database: xraydb
+  initdbscripts: |
+    CREATE USER {{ .Values.postgresql.artifactory.username }} WITH PASSWORD '{{ .Values.postgresql.artifactory.password }}';
+    CREATE DATABASE {{ .Values.postgresql.artifactory.database }} WITH OWNER={{ .Values.postgresql.artifactory.username }} ENCODING='UTF8';
+    GRANT ALL PRIVILEGES ON DATABASE {{ .Values.postgresql.artifactory.database }} TO {{ .Values.postgresql.artifactory.username }};
+
+    CREATE USER {{ .Values.postgresql.xray.username }} WITH PASSWORD '{{ .Values.postgresql.xray.password }}';
+    CREATE DATABASE {{ .Values.postgresql.xray.database }} WITH OWNER={{ .Values.postgresql.xray.username }} ENCODING='UTF8';
+    GRANT ALL PRIVILEGES ON DATABASE {{ .Values.postgresql.xray.database }} TO {{ .Values.postgresql.xray.username }};
 
 ## All values are under the 'artifactory-ha' sub chart.
 artifactory-ha:
@@ -29,7 +84,7 @@ artifactory-ha:
   ## Configuration values for the PostgreSQL dependency sub-chart
   ## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
   postgresql:
-    enabled: true
+    enabled: false
 
 ## All values are under the 'xray' sub chart.
 xray:
@@ -41,59 +96,32 @@ xray:
     jfrogUrl:
   # sleep the xray to let artifactory come up first
   common:
-    customInitContainers: |
-      - name: "rt-wait-setup"
-        image: "{{ .Values.initContainerImage }}"
-        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
-        command:
-          - 'sh'
-          - '-c'
-          - >
-            until nc -z -w 2 {{ .Release.Name }}-nginx 80 && echo artifactory nginx ok; do
-              sleep 2;
-            done;
-        volumeMounts:
-          - mountPath: "{{ .Values.xray.persistence.mountPath }}"
-            name: data-volume
-      - name: "rt-services-wait-setup"
-        image: "{{ .Values.initContainerImage }}"
-        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
-        command:
-          - 'sh'
-          - '-c'
-          - 'sleep 180;'
-        volumeMounts:
-          - mountPath: "{{ .Values.xray.persistence.mountPath }}"
-            name: data-volume
+    # customInitContainers: |
+    # - name: "rt-wait-setup"
+    #   image: "{{ .Values.initContainerImage }}"
+    #   imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+    #   command:
+    #     - 'sh'
+    #     - '-c'
+    #     - >
+    #       until nc -z -w 2 {{ .Release.Name }}-nginx 80 && echo artifactory nginx ok; do
+    #         sleep 2;
+    #       done;
+    #   volumeMounts:
+    #     - mountPath: "{{ .Values.xray.persistence.mountPath }}"
+    #       name: data-volume
+    # - name: "rt-services-wait-setup"
+    #   image: "{{ .Values.initContainerImage }}"
+    #   imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+    #   command:
+    #     - 'sh'
+    #     - '-c'
+    #     - 'sleep 180;'
+    #   volumeMounts:
+    #     - mountPath: "{{ .Values.xray.persistence.mountPath }}"
+    #       name: data-volume
   postgresql:
-    nameOverride: xray-postgres
-    enabled: true
-    image:
-      registry: docker.bintray.io
-      repository: bitnami/postgresql
-      tag: 9.6.17-debian-10-r21
-    postgresqlUsername: xray
-    postgresqlPassword: ""
-    postgresqlDatabase: xraydb
-    postgresqlExtendedConf:
-      listenAddresses: "'*'"
-      maxConnections: "500"
-    service:
-      port: 5432
-    persistence:
-      enabled: true
-      size: 50Gi
-      existingClaim:
-    resources: {}
-    #  requests:
-    #    memory: "1Gi"
-    #    cpu: "250m"
-    #  limits:
-    #    memory: "2Gi"
-    #    cpu: "1"
-    nodeSelector: {}
-    affinity: {}
-    tolerations: []
+    enabled: false #TODO, turn this to false
 
   database:
     url: "postgres://{{ .Release.Name }}-xray-postgres:5432/xraydb?sslmode=disable"
