@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgre-init-scripts
+  labels:
+    app: "platform"
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+data:
+{{- with .Values.postgresql.initdbScripts }}
+{{ toYaml . | indent 2 }}
+{{- end }}

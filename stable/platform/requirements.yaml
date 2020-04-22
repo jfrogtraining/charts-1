@@ -1,6 +1,10 @@
 dependencies:
+  - name: postgresql
+    version: 8.7.3
+    repository: https://charts.bitnami.com/bitnami
+    condition: platform.postgres.enabled
   - name: artifactory-ha
-    version: 2.4.0
+    version: 2.4.2
     repository: https://charts.jfrog.io/
     condition: artifactory-ha.enabled
   - name: xray
@@ -8,14 +12,14 @@ dependencies:
     repository: https://charts.jfrog.io/
     condition: xray.enabled
   - name: distribution
-    version: 5.1.1
+    version: 5.1.2
     repository: https://charts.jfrog.io/
     condition: distribution.enabled
   - name: mission-control
-    version: 3.1.1
+    version: 3.2.0
     repository: https://charts.jfrog.io/
     condition: mission-control.enabled
   - name: pipelines
-    version: 1.0.36
+    version: 1.1.1
     repository: https://charts.jfrog.io/
     condition: pipelines.enabled
