@@ -4,7 +4,7 @@ dependencies:
   version: 2.4.5
 - name: xray
   repository: https://charts.jfrog.io/
-  version: 3.2.4
+  version: 3.3.0
 - name: distribution
   repository: https://charts.jfrog.io/
   version: 5.1.1
@@ -14,5 +14,5 @@ dependencies:
 - name: pipelines
   repository: https://charts.jfrog.io/
   version: 1.0.36
-digest: sha256:3f8e5df11f14a633cbfe05a15c49e6634ec1d125c76e83490853238b23209656
-generated: "2020-04-27T15:49:11.832852-07:00"
+digest: sha256:30465b32203307b89d6a62383422c9aeef5952443b81a259a12772f2e7e5ec81
+generated: "2020-04-28T11:03:40.008689-07:00"
