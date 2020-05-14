@@ -1,8 +1,4 @@
 ## Enable Subcharts
-artifactory-ha:
-  enabled: true
-xray:
-  enabled: true
 distribution:
   enabled: false
 mission-control:
@@ -10,9 +6,10 @@ mission-control:
 pipelines:
   enabled: false
 
+
 ## All values are under the 'artifactory-ha' sub chart.
 artifactory-ha:
-
+  enabled: true
   ## Artifactory
   ## See full list of supported Artifactory options and documentation in artifactory chart: https://github.com/jfrog/charts/tree/master/stable/artifactory
   artifactory:
@@ -20,7 +17,6 @@ artifactory-ha:
     joinKey: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     ## Default version is from the artifactory sub-chart in the requirements.yaml
     image:
-      #repository: partnership-jfrog-artifactory.jfrog.io/artifactory-pro-rh
       repository: docker.bintray.io/jfrog/artifactory-pro
       # version:
     node:
@@ -31,29 +27,39 @@ artifactory-ha:
   ## ref: https://github.com/kubernetes/charts/blob/master/stable/postgresql/README.md
   postgresql:
     enabled: true
-  # Disable ssl offload if needed
-  nginx:
-    service:
-      ssloffload: true
 
 ## All values are under the 'xray' sub chart.
 xray:
+  enabled: true
   replicaCount: 1
   xray:
     masterKey: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
     joinKey: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     consoleLog: false
-    jfrogUrl:
+    jfrogUrl: "http://{{ .Release.Name }}-nginx"
   # sleep the xray to let artifactory come up first
   common:
     customInitContainers: |
+      - name: "rt-wait-setup"
+        image: "{{ .Values.initContainerImage }}"
+        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+        command:
+          - 'sh'
+          - '-c'
+          - >
+            until nc -z -w 2 {{ .Release.Name }}-nginx 80 && echo artifactory nginx ok; do
+              sleep 2;
+            done;
+        volumeMounts:
+          - mountPath: "{{ .Values.xray.persistence.mountPath }}"
+            name: data-volume
       - name: "rt-services-wait-setup"
         image: "{{ .Values.initContainerImage }}"
         imagePullPolicy: "{{ .Values.imagePullPolicy }}"
         command:
           - 'sh'
           - '-c'
-          - 'sleep 450;'
+          - 'sleep 180;'
         volumeMounts:
           - mountPath: "{{ .Values.xray.persistence.mountPath }}"
             name: data-volume
@@ -123,7 +129,6 @@ xray:
     name: xray-analysis
     ## Note that by default we use appVersion to get image tag/version
     image:
-      #repository: partnership-jfrog-artifactory.jfrog.io/xray-analysis-rh
       repository: docker.bintray.io/jfrog/xray-analysis
       # version:
     updateStrategy: RollingUpdate
@@ -136,7 +141,6 @@ xray:
     name: xray-indexer
     ## Note that by default we use appVersion to get image tag/version
     image:
-      #repository: partnership-jfrog-artifactory.jfrog.io/xray-indexer-rh
       repository: docker.bintray.io/jfrog/xray-indexer
       # version:
     updateStrategy: RollingUpdate
@@ -146,7 +150,6 @@ xray:
     name: xray-persist
     ## Note that by default we use appVersion to get image tag/version
     image:
-      #repository: partnership-jfrog-artifactory.jfrog.io/xray-persist-rh
       repository: docker.bintray.io/jfrog/xray-persist
       # version:
     updateStrategy: RollingUpdate
@@ -163,7 +166,6 @@ xray:
     name: xray-server
     ## Note that by default we use appVersion to get image tag/version
     image:
-      #repository: partnership-jfrog-artifactory.jfrog.io/xray-server-rh
       repository: docker.bintray.io/jfrog/xray-server
       # version:
     updateStrategy: RollingUpdate
@@ -174,6 +176,15 @@ xray:
     name: router
     image:
       repository: docker.bintray.io/jfrog/router
-      #repository: partnership-jfrog-artifactory.jfrog.io/xray-router-rh
       version: 1.2.1
       imagePullPolicy: IfNotPresent
+
+  # Filebeat Sidecar container
+  ## The provided filebeat configuration is for Xray logs. It assumes you have a logstash installed and configured properly.
+  filebeat:
+    enabled: false
+    name: xray-filebeat
+    image:
+      repository: "docker.elastic.co/beats/filebeat"
+      version: 7.5.1
+    logstashUrl: "logstash:5044"
